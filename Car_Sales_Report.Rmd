@@ -3,11 +3,7 @@ title: 'Car Price Report'
 subtitle: '***HarvardX Data Science Professional Certificate: PH125.9x Capstone Project 2***'
 author: "Mateus Spencer"
 date: "2024-04-19"
-output: 
-  pdf_document:
-    fig_width: 6.5
-    fig_height: 9
-    geometry: "left=1in, right=1in, top=1in, bottom=1in"
+output: pdf_document
 urlcolor: blue
 ---
 
@@ -192,7 +188,7 @@ There are `r length(unique(all_cars$'make'))` unique car makes and `r length(uni
 There are `r length(unique(all_cars$'transmission'))` types of transmission: `r unique(all_cars$'transmission')` and  `r length(unique(all_cars$'fuelType'))` types of fuel: `r unique(all_cars$'fuelType')`.
 
 Here we can inspect them visually.
-```{r bar plots, echo=FALSE, fig.height=7, fig.width=6}
+```{r bar plots, echo=FALSE, fig.height=5, ffig.width=5}
 all_cars %>%
   select(where(is.factor)) %>% 
   gather(variable, value) %>% 
@@ -202,8 +198,10 @@ all_cars %>%
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   ggtitle("Bar plots of categorical variables")
 ```
-Lets vizualize the distibutions of the numerical variables.
-```{r boxplots numerical, echo=FALSE, fig.height=10, fig.width=10}
+
+For the numerical variables we will plot histograms and boxplots to visualize the distribution of the data and identify any outliers.
+
+```{r bar plots numerical, echo=FALSE, fig.height=10, ffig.width=5}
 numeric_data <- all_cars %>% select(where(is.numeric))
 
 plot_hist_box <- function(data, variable) {
@@ -228,6 +226,7 @@ rm(numeric_data, plots)
 ```
 
 Here is a table that summarizes some of the attributes of the numerical variables.
+
 ```{r numerical table, echo=FALSE}
 calc_mode <- function(x) {
   ux <- unique(x)
@@ -248,13 +247,17 @@ descriptive_stats <- select_if(all_cars, is.numeric) %>%
 
 kable(descriptive_stats)
 rm(descriptive_stats, calc_mode)
-```	
+```
+
 We see there are some outliers so we will adress each variable individually and clean the data.
+
 ```{r clean data, echo=FALSE}
 all_cars_clean <- all_cars
 ```
+
 #### Year
-There is at least one clear error in the year since one car is from the future, so we will remove entries whose year is greater than 2024 and also the outliers with years below 1990.
+
+There is at least one clear error in the year since one car is from the future `r max(all_cars_clean$year)`, so we will remove entries whose year is greater than 2024 and also the outliers with years below 1990.
 ```{r year plot, echo=FALSE}
 all_cars_clean <- all_cars_clean %>% filter(year <= 2024 & year >= 1990)
 plot <- lapply("year", plot_hist_box, data = all_cars_clean)
@@ -264,17 +267,21 @@ rm(plot)
 We removerd `r nrow(filter(all_cars, year > 2024 & year < 1990))` rows from the dataset.
 
 #### Mileage
+
 In regards to mileage the mean is `r mean(all_cars$'mileage')`, which is affected by the presence of an outlier value of `r max(all_cars$'mileage')` miles. 
 We will therefore remove these outliers (greater than 150000) to get a more accurate representation of the data.
+
 ```{r mileage, echo=FALSE}
 all_cars_clean <- all_cars_clean %>% filter(mileage < 150000)
 plot <- lapply("mileage", plot_hist_box, data = all_cars_clean)
 do.call(grid.arrange, c(plot, ncol = 1))
 rm(plot)
 ```
+
 We removerd `r nrow(filter(all_cars, mileage >= 150000))` rows from the dataset.
 
 #### Miles per Gallon (MPG)
+
 Besides the clear outlier with mpg of `r max(all_cars$'mpg')`, the distribution of the mpg is quite skewed to the right. 
 We will remove the outliers with mpg greater than 100 and lower than 15.
 ```{r mpg, echo=FALSE}
@@ -287,10 +294,11 @@ rm(plot)
 We removerd `r nrow(filter(all_cars, mpg >= 100 & mpg <= 15))` rows from the dataset.
 
 #### Tax
+
 It looks there are two outlier clusters: tax values over 350 and lower than 100.
 Lets plot the distributions of the observations from the high tax value group.
 
-```{r tax high, echo=FALSE, fig.height=10, fig.width=10}
+```{r tax high, echo=FALSE, fig.height=7, fig.width=6}
 all_cars_high_tax <- all_cars_clean %>% filter(tax > 350) %>% select(where(is.numeric))
 
 plots <- lapply(names(all_cars_high_tax), plot_hist_box, data = all_cars_high_tax)
@@ -307,7 +315,7 @@ rm (all_cars_high_tax)
 
 Now looking at the low tax value group.
 
-```{r tax low, echo=FALSE, fig.height=10, fig.width=10}
+```{r tax low, echo=FALSE, fig.height=7, ffig.width=6}
 all_cars_low_tax <- all_cars_clean %>% filter(tax < 100) %>% select(where(is.numeric))
 nrow(all_cars_low_tax)
 plots <- lapply(names(all_cars_low_tax), plot_hist_box, data = all_cars_low_tax)
@@ -315,7 +323,8 @@ do.call(grid.arrange, c(plots, ncol = 2))
 rm(plots)
 ```
 First of all we see there is quite a large number of cars in this cluster: `r nrow(all_cars_low_tax)`.
-Excluding a clear outlier, these cars have a small price and the other values are not particularly different from others besides the low value of tax. 
+Excluding a clear outlier, these cars have a small price and the other values are not particularly different from others besides the low value of tax.
+
 Therefore we will keep these and only remove the outlier with a price of `r max(all_cars_low_tax$price)` for a relatively low tax.
 
 ```{r tax remove low, echo=FALSE}	
@@ -324,6 +333,7 @@ rm (all_cars_low_tax)
 ```
 
 #### Engine Size
+
 The Histogram shows us that there are some cars with a reported engine sizze of 0, which is not possible so we will remove them.
 
 ```{r engineSize 0, echo=FALSE}
@@ -335,7 +345,7 @@ rm(plot)
 
 Now looking at the bigger engine sizes we see that there are a small number of cars with engine sizes above 4.
 
-```{r engineSize big, echo=FALSE, fig.height=10, fig.width=10}
+```{r engineSize big, echo=FALSE, fig.height=7, ffig.width=6}
 all_cars_clean_big_engine <- all_cars_clean %>% filter(engineSize > 4)%>% select(where(is.numeric))
 
 plots <- lapply(names(all_cars_clean_big_engine), plot_hist_box, data = all_cars_clean_big_engine)
@@ -353,12 +363,14 @@ rm(plot)
 ```
 
 #### Price
+
 The distribution, like the mileage is a long tail distribution, which we could try to normalize with a log distribution to improve model performnce but will leave as is for now.
 
 #### After Outlier Removal
+
 We ended up removing `r nrow(all_cars) - nrow(all_cars_clean)` rows from the dataset.
 
-```{r after outlier, echo=FALSE, fig.height=10, fig.width=10}
+```{r after outlier, echo=FALSE, fig.height=7, fig.width=6}
 numeric_data <- all_cars_clean %>% select(where(is.numeric))
 
 plots <- lapply(names(numeric_data), plot_hist_box, data = numeric_data)
@@ -367,7 +379,6 @@ do.call(grid.arrange, c(plots, ncol = 2))
 
 rm(numeric_data, plots)
 ```
-
 
 ### 2.3.2. Bivariate/Multivariate Analysis
 We can also look at the relationships between variables and see how they affect each other.
@@ -451,8 +462,7 @@ rm(plot1, plot2)
 
 ## 2.4. Feature Engineering & Data Preparation
 
-
-First we'll start by encoding the categorical variables using one-hot encoding.
+First we'll start by encoding the categorical variables into numerical values so that they can be used in the models.
 
 ```{r ,echo=FALSE}
 all_cars_clean_encoded <- all_cars_clean
@@ -464,7 +474,7 @@ kable(head(all_cars_clean_encoded), align = 'l')
 rm(list_categorical)
 ```
 
-As mentioned before we will perform a log transformation to normalize the values of mileage and price to improve performance in models that assume normality.
+As mentioned before we will try to perform a log transformation to normalize the values of mileage and price to improve performance in models that assume normality.
 
 ```{r log transformation mileage, echo=FALSE}
 all_cars_clean_encoded_log_mileage <- all_cars_clean_encoded %>% 
@@ -507,6 +517,7 @@ ggsave("qq_plots.png", grid, width = 10, height = 10)
 knitr::include_graphics("qq_plots.png")
 
 rm(qqplot_price_before, qqplot_price_after, grid)
+rm(plot_hist_box)
 ```
 
 For the price variable, the log transformation has improved the distribution and made it more normal. We will keep this transformation.
@@ -515,11 +526,14 @@ We are now ready to start building the price prediction models.
 
 ## 2.5. Modeling Approaches
 
-We will be building several models to predict the price of the cars.
-We will evaluate the performance of each model using appropriate metrics and select the best model based on these metrics.
+We will be building several models to predict the price of the cars and evaluate the performance of each model using appropriate metrics such as RMSE, R2 and MAE and select the best model based on these metrics.
+
+- RMSE: Root Mean Squared Error is the square root of the average of the squared differences between the predicted and actual values.
+- R2: R-squared is a measure of how well the model fits the data. It is a value between 0 and 1, with 1 indicating a perfect fit.
+- MAE: Mean Absolute Error is the average of the absolute differences between the predicted and actual values.
 
 # 3. Model Building
-We will use models from the caret package with cross validation to evaluate the performance of the models and select the best one based on the RMSE and R2 values.
+We will start by splitting the data into training and testing sets and then build and evaluate the models, starting with a baseline linear regression model and then moving on to more complex models such as Elastic Net and LightGBM.
 
 ```{r setup evaluate, echo=FALSE}
 
@@ -559,9 +573,19 @@ trainData_Y <- trainData$price
 testData <- all_cars_clean_encoded[-trainIndex, ]
 testData_X <- testData %>% select(-price)
 testData_Y <- testData$price
+
+rm(trainIndex)
 ```
 
 ## 3.2. Model 1: Baseline linear regression model
+Linear regression is one of the simplest and most widely used statistical techniques for predictive modeling.
+It aims to model the relationship between a scalar dependent variable y (price) and one or more independent variables (features of the cars) denoted X. 
+The relationship is modeled through a linear function and the unknown model parameters are estimated from the data.
+This is generally done by minimizing the sum of the squares of the differences between the observed responses in the dataset and those predicted by the linear approximation.
+
+Linear regression benefits from being straightforward to understand and interpret, and it's particularly useful when there is a linear relationship between the inputs and the output.
+However, it's often too simplistic to capture complex patterns in data unless transformations or interactions are included.
+
 ```{r baseline lr model, echo=FALSE}
 train_control <- trainControl(method = "cv", number = 10)
 
@@ -574,14 +598,22 @@ lr_model <- train(
 
 print(lr_model$bestTune)
 
-predictions <- predict(lr_model, newdata = testData)
+predictions_lr <- predict(lr_model, newdata = testData)
 
-evaluate_model(predictions, "Baseline Linear Regression", results)
+evaluate_model(predictions_lr, "Baseline Linear Regression", results)
 
-rm(lr_model, train_control, predictions)
+rm(lr_model, train_control)
 ```
 
 ## 3.3. Model 2: Elastic Net Model
+
+The Elastic Net is a regularized regression method that linearly combines the L1 and L2 penalties of the Lasso and Ridge methods.
+The model solves a regularized version of the least squares, where the objective function is augmented by adding penalty terms that constrain the size of the coefficients:
+- L1 penalty (Lasso): Encourages sparsity which can be useful for feature selection if some features are irrelevant.
+- L2 penalty (Ridge): Shrinks the coefficients of correlated predictors towards each other, thus stabilizing the solution.
+Elastic Net is particularly useful when there are multiple features that are correlated with each other. 
+The combination of L1 and L2 penalty functions allows Elastic Net to inherit some of Ridge's stability under correlated data and Lasso's ability to select sparse features.
+
 ```{r, echo=FALSE}
 train_control <- trainControl(method = "cv", number = 10)
 
@@ -598,16 +630,25 @@ elasticnet_model <- train(
   tuneGrid = tuneGrid
 )
 
-print(elasticnet_model$bestTune)
+predictions_elasticnet  <- predict(elasticnet_model, newdata = testData)
 
-predictions <- predict(elasticnet_model, newdata = testData)
+evaluate_model(predictions_elasticnet, "Elastic Net", results)
 
-evaluate_model(predictions, "Elastic Net", results)
-
-rm(elasticnet_model, train_control, tuneGrid, predictions)
+rm(elasticnet_model, train_control, tuneGrid)
 ```
 
+However, the Elastic Net model did not improve on the performance of the baseline linear regression model.
+We will now try a more complex model, the LightGBM model, to see if it can provide better predictions.
+
 ## 3.4. Model 3: LightGBM Model
+
+LightGBM (Light Gradient Boosting Machine) is an efficient and scalable implementation of gradient boosting framework by Microsoft.
+It uses tree-based learning algorithms designed for speed and performance.
+LightGBM extends the gradient boosting model by introducing two key innovations:
+- Gradient-based One-Side Sampling (GOSS): A technique to filter out the data instances to find a split value, focusing more on those instances that produce larger gradients.
+- Exclusive Feature Bundling (EFB): A method to reduce the number of features by combining mutually exclusive features, thus significantly decreasing the number of data dimensions without sacrificing much accuracy.
+LightGBM constructs trees leaf-wise (best-first), rather than level-wise like other boosting methods. 
+This makes the model more efficient and generally leads to better model fit as it grows the tree more with the most promising regions.
 
 ```{r LightGmb Model, echo=FALSE}
 dtrain <- lgb.Dataset(data = as.matrix(trainData_X), label = trainData_Y)
@@ -628,10 +669,9 @@ params <- list(
 cv_result <- lgb.cv(
   params = params,
   data = dtrain,
-  nrounds = 1000,
+  nrounds = 2000,
   nfold = 5,
-  early_stopping_rounds = 10,
-  seed = 123
+  early_stopping_rounds = 10
 )
 
 # Train the LightGBM model
@@ -641,15 +681,14 @@ lightgbm_model <- lgb.train(
   nrounds = cv_result$best_iter
 )
 
-print(params)
+predictions_lightgbm <- predict(lightgbm_model, newdata = as.matrix(testData_X))
 
-predictions <- predict(lightgbm_model, newdata = as.matrix(testData_X))
-
-results <- evaluate_model(predictions, "LightGBM", results)
+evaluate_model(predictions_lightgbm, "LightGBM", results)
 
 rm(dtrain, cv_result, lightgbm_model)
 ```
 
+As we can see this is quite a good result. We will now compare the results of the three models.
 
 # 4. Model Evaluation & Results
 
@@ -658,12 +697,10 @@ rm(dtrain, cv_result, lightgbm_model)
 
 ```
 
-## 4.2. Insights Gained
-
-
 # 5. Conclusion
 
 ## 5.1. Summary of the Report
+
 
 
 ## 5.2. Potential Impact
@@ -677,6 +714,9 @@ rm(dtrain, cv_result, lightgbm_model)
 
 # 6. References
 
-[1] “Introduction to Data Science - Data Analysis and Prediction Algorithms with R”, Dr. Rafael A. Irizarry [link](https://rafalab.github.io/dsbook/)
+# 6. References
 
-# Appendices
+[1] “Introduction to Data Science - Data Analysis and Prediction Algorithms with R”, Dr. Rafael A. Irizarry [link](https://rafalab.github.io/dsbook/)
+[2] “An Introduction to Statistical Learning with Applications in R”, Gareth James, Daniela Witten, Trevor Hastie, Robert Tibshirani [link](https://www.statlearning.com/)
+[3] “LightGBM: A Highly Efficient Gradient Boosting Decision Tree”, Guolin Ke, Qi Meng, Thomas Finley, Taifeng Wang, Wei Chen, Weidong Ma, Qiwei Ye, Tie-Yan Liu [link](https://papers.nips.cc/paper/6907-lightgbm-a-highly-efficient-gradient-boosting-decision-tree.pdf)
+[4] “Elastic Net Regularization”, Hui Zou, Trevor Hastie [link](https://web.stanford.edu/~hastie/Papers/elasticnet.pdf)
