@@ -1,0 +1,682 @@
+---
+title: 'Car Price Report'
+subtitle: '***HarvardX Data Science Professional Certificate: PH125.9x Capstone Project 2***'
+author: "Mateus Spencer"
+date: "2024-04-19"
+output: 
+  pdf_document:
+    fig_width: 6.5
+    fig_height: 9
+    geometry: "left=1in, right=1in, top=1in, bottom=1in"
+urlcolor: blue
+---
+
+\newpage
+
+```{r setup, include = FALSE}
+if (!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if (!require(ggplot2)) install.packages("ggplot2", repos = "http://cran.us.r-project.org")
+if (!require(caret)) install.packages("caret", repos = "http://cran.us.r-project.org")
+if (!require(dplyr)) install.packages("dplyr", repos = "http://cran.us.r-project.org")
+if (!require(data.table)) install.packages("data.table", repos = "http://cran.us.r-project.org")
+if (!require(GGally)) install.packages("GGally", repos = "http://cran.us.r-project.org")
+if (!require(lubridate)) install.packages("lubridate", repos = "http://cran.us.r-project.org")
+if (!require(gridExtra)) install.packages("gridExtra", repos = "http://cran.us.r-project.org")
+if (!require(moments)) install.packages("moments", repos = "http://cran.us.r-project.org")
+if (!require(purrr)) install.packages("purrr", repos = "http://cran.us.r-project.org")
+if (!require(gplots)) install.packages("gplots", repos = "http://cran.us.r-project.org")
+if (!require(corrplot)) install.packages("corrplot", repos = "http://cran.us.r-project.org")
+if (!require(rpart)) install.packages("rpart", repos = "http://cran.us.r-project.org")
+if (!require(Metrics)) install.packages("Metrics", repos = "http://cran.us.r-project.org")
+if (!require(lightgbm)) install.packages("lightgbm", repos = "http://cran.us.r-project.org")
+
+if (!require(knitr)) install.packages("knitr", repos = "http://cran.us.r-project.org")
+if (!require(kableExtra)) install.packages("kableExtra", repos = "http://cran.us.r-project.org")
+if (!require(readr)) install.packages("readr", repos = "http://cran.us.r-project.org")
+
+library(tidyverse)
+library(ggplot2)
+library(caret)
+library(dplyr)
+library(data.table)
+library(GGally)
+library(lubridate)
+library(gridExtra)
+library(moments)
+library(purrr)
+library(gplots)
+library(corrplot)
+library(rpart)
+library(Metrics)
+library(lightgbm)
+
+library(knitr)
+library(kableExtra)
+library(readr)
+
+knitr::opts_chunk$set(fig.align='center', echo=FALSE, warning=FALSE, message=FALSE)
+
+```
+
+# 1. Introduction/Overview
+
+## 1.1. Project Overview
+This project aims to explore, clean, and analyze a dataset of used car sales in the UK.
+The dataset, sourced from Kaggle:  [100,000 UK Used Car Data set](https://www.kaggle.com/datasets/adityadesai13/used-car-dataset-ford-and-mercedes/data), contains information about 100,000 used cars from various makes including Audi, BMW, Ford, Hyundai, Mercedes, Skoda, Toyota, Vauxhall, and Volkswagen.
+
+The primary goal of this project is to build and evaluate predictive models that can effectively predict car sales.
+This involves several steps, starting with initial data exploration to understand the structure and characteristics of the data. 
+This is followed by data cleaning to handle missing values, outliers, and any inconsistencies in the data. 
+Feature engineering is then performed to create new variables that can improve the performance of the predictive models.
+The data is then split into training and testing sets, and various machine learning models are built and evaluated using cross-validation.
+The performance of each model is assessed using appropriate metrics, and the best model is selected based on these metrics.
+This report documents the entire process, providing a detailed overview of the steps taken and the results obtained.
+It serves as a comprehensive guide to the project, offering insights into the data and the predictive models built.
+# 2. Data Exploration
+
+This section is dedicated to exploring the dataset, which is a critical step in understanding the data we're working with.
+We will only be using the data files regarding the makes of the cars and not the cclass or focus datasets as they are in their respective make datasets.
+```{r load dataset, include = FALSE}
+audi <- read_csv("data/audi.csv", show_col_types = FALSE)
+bmw <- read_csv("data/bmw.csv",show_col_types = FALSE)
+ford <- read_csv("data/ford.csv", show_col_types = FALSE)
+hyundi <- read_csv("data/hyundi.csv", show_col_types = FALSE)
+merc <- read_csv("data/merc.csv",show_col_types = FALSE)
+skoda <- read_csv("data/skoda.csv",show_col_types = FALSE)
+toyota <- read_csv("data/toyota.csv",show_col_types = FALSE)
+vauxhall <- read_csv("data/vauxhall.csv",show_col_types = FALSE)
+vw <- read_csv("data/vw.csv",show_col_types = FALSE)
+```
+
+We first check if all the datasets have the same columns and column names. 
+```{r check differences, echo=FALSE}
+data_frames <- list(audi, bmw, ford, hyundi, merc, skoda, toyota, vauxhall, vw)
+
+first_column_names <- names(data_frames[[1]])
+
+for (i in seq_along(data_frames)) {
+  current_column_names <- names(data_frames[[i]])
+  
+  if (!all(current_column_names %in% first_column_names)) {    
+    print(setdiff(current_column_names, first_column_names))
+  }
+}
+
+rm(data_frames, first_column_names, current_column_names, i)
+```
+
+As we see one of them has a different column name, we will change it to match the others so we don't get two columns that shpuld actually be the same when we join the datasets.
+
+```{r rename, echo=FALSE}
+hyundi <- rename(hyundi, tax = `tax(£)`)
+```
+
+Before combining the datasets, we will add a column to each dataset to identify the make of the car as this might be beneficial for the model performance.
+
+```{r add makes, echo=FALSE}	
+audi$make <- "Audi"
+bmw$make <- "BMW"
+ford$make <- "Ford"
+hyundi$make <- "Hyundai"
+merc$make <- "Mercedes"
+skoda$make <- "Skoda"
+toyota$make <- "Toyota"
+vauxhall$make <- "Vauxhall"
+vw$make <- "Volkswagen"
+```
+
+Now we can combine all the datasets into one.
+```{r join data, echo=FALSE}
+# Combine all the datasets into one
+all_cars <- bind_rows(list(audi, bmw, ford, hyundi, merc, skoda, toyota, vauxhall, vw))
+
+# delete the individual datasets to free up memory
+rm(audi, bmw, ford, hyundi, merc, skoda, toyota, vauxhall, vw)
+```
+
+## 2.1. Data Overview
+
+The dataset contains `r nrow(all_cars)` rows and `r ncol(all_cars)` columns.
+Here we can look at the first few rows of the dataset.
+
+```{r head, echo=FALSE}
+kable(head(all_cars), align = 'l')
+```
+
+Here is a brief description of each variable in the dataset.
+
+```{r structure of dataset, echo=FALSE}
+variables_description <- data.frame(
+  `Data Type` = sapply(all_cars, function(col) class(col)[1]),
+  Description = c(
+    "Model of the car",
+    "Year of manufacture",
+    "Price of the car",
+    "Type of transmission",
+    "Mileage of the car",
+    "Type of fuel used",
+    "Tax on the car",
+    "Miles per gallon",
+    "Engine size",
+    "Make of the car"
+  ),
+  stringsAsFactors = FALSE
+)
+
+kable(variables_description, format = "markdown", col.names = c("Data Type", "Description"), align = 'l')
+
+rm(variables_description)
+```
+## 2.2. Data Cleaning
+
+In this section, we will clean our dataset by handling missing values, removing duplicates, and converting data types if necessary.
+There are `r sum(is.na(all_cars))` missing values, and `r sum(duplicated(all_cars))` duplicate rows so we need to adress these issues.
+We will remove the duplicate rows that might have appeared during the data gathering process.
+
+```{r remove duplicates, echo=FALSE}
+all_cars <- all_cars[!duplicated(all_cars), ]
+```
+Next, we convert some of the variables into factors, namely:  model, make, transmission and fuelType.
+```{r factors, echo=FALSE}
+all_cars <- mutate(all_cars, model = as.factor(model), transmission = as.factor(transmission), fuelType = as.factor(fuelType), make = as.factor(make))
+```
+We are now ready to move on to the next step in the data analysis process.
+
+## 2.3. Exploratory Data Analysis
+Lets try to understand the underlying structure of the data, identify outliers and anomalies, discover patterns, spot relationships among variables and test assumptions. 
+
+### 2.3.1. Univariate Analysis
+We can start by looking at the distribution of the categorical variables.
+
+There are `r length(unique(all_cars$'make'))` unique car makes and `r length(unique(all_cars$'model'))` unique models in the dataset.
+There are `r length(unique(all_cars$'transmission'))` types of transmission: `r unique(all_cars$'transmission')` and  `r length(unique(all_cars$'fuelType'))` types of fuel: `r unique(all_cars$'fuelType')`.
+
+Here we can inspect them visually.
+```{r bar plots, echo=FALSE, fig.height=7, fig.width=6}
+all_cars %>%
+  select(where(is.factor)) %>% 
+  gather(variable, value) %>% 
+  ggplot() + 
+  geom_bar(aes(x=value), width=0.7, fill = "skyblue", color = "black") + 
+  facet_wrap(~ variable, scales="free", ncol = 2) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("Bar plots of categorical variables")
+```
+Lets vizualize the distibutions of the numerical variables.
+```{r boxplots numerical, echo=FALSE, fig.height=10, fig.width=10}
+numeric_data <- all_cars %>% select(where(is.numeric))
+
+plot_hist_box <- function(data, variable) {
+  histogram <- ggplot(data, aes_string(variable)) + 
+    geom_histogram(fill = "skyblue", color = "black", bins = 30) +
+    ggtitle(paste("Histogram of", variable))
+  
+  boxplot <- ggplot(data, aes_string(variable)) + 
+    geom_boxplot(horizontal = TRUE, fill = "skyblue", color = "black") +
+    ggtitle(paste("Boxplot of", variable))
+  
+  plot <- gridExtra::arrangeGrob(boxplot, histogram, ncol = 1)
+  
+  return(plot)
+}
+
+plots <- lapply(names(numeric_data), plot_hist_box, data = numeric_data)
+
+do.call(grid.arrange, c(plots, ncol = 2))
+
+rm(numeric_data, plots)
+```
+
+Here is a table that summarizes some of the attributes of the numerical variables.
+```{r numerical table, echo=FALSE}
+calc_mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+descriptive_stats <- select_if(all_cars, is.numeric) %>%
+  map_df(function(x) tibble(
+    Mean = mean(x, na.rm = TRUE),
+    Median = median(x, na.rm = TRUE),
+    Mode = calc_mode(x),
+    SD = sd(x, na.rm = TRUE),
+    Min = min(x, na.rm = TRUE),
+    Max = max(x, na.rm = TRUE),
+    Skewness = skewness(x, na.rm = TRUE),
+    Kurtosis = kurtosis(x, na.rm = TRUE)
+  ), .id = "Variable")
+
+kable(descriptive_stats)
+rm(descriptive_stats, calc_mode)
+```	
+We see there are some outliers so we will adress each variable individually and clean the data.
+```{r clean data, echo=FALSE}
+all_cars_clean <- all_cars
+```
+#### Year
+There is at least one clear error in the year since one car is from the future, so we will remove entries whose year is greater than 2024 and also the outliers with years below 1990.
+```{r year plot, echo=FALSE}
+all_cars_clean <- all_cars_clean %>% filter(year <= 2024 & year >= 1990)
+plot <- lapply("year", plot_hist_box, data = all_cars_clean)
+do.call(grid.arrange, c(plot, ncol = 1))
+rm(plot)
+```
+We removerd `r nrow(filter(all_cars, year > 2024 & year < 1990))` rows from the dataset.
+
+#### Mileage
+In regards to mileage the mean is `r mean(all_cars$'mileage')`, which is affected by the presence of an outlier value of `r max(all_cars$'mileage')` miles. 
+We will therefore remove these outliers (greater than 150000) to get a more accurate representation of the data.
+```{r mileage, echo=FALSE}
+all_cars_clean <- all_cars_clean %>% filter(mileage < 150000)
+plot <- lapply("mileage", plot_hist_box, data = all_cars_clean)
+do.call(grid.arrange, c(plot, ncol = 1))
+rm(plot)
+```
+We removerd `r nrow(filter(all_cars, mileage >= 150000))` rows from the dataset.
+
+#### Miles per Gallon (MPG)
+Besides the clear outlier with mpg of `r max(all_cars$'mpg')`, the distribution of the mpg is quite skewed to the right. 
+We will remove the outliers with mpg greater than 100 and lower than 15.
+```{r mpg, echo=FALSE}
+all_cars_clean <- all_cars_clean %>% filter(mpg < 100 & mpg > 15)
+plot <- lapply("mpg", plot_hist_box, data = all_cars_clean)
+do.call(grid.arrange, c(plot, ncol = 1))
+rm(plot)
+```
+
+We removerd `r nrow(filter(all_cars, mpg >= 100 & mpg <= 15))` rows from the dataset.
+
+#### Tax
+It looks there are two outlier clusters: tax values over 350 and lower than 100.
+Lets plot the distributions of the observations from the high tax value group.
+
+```{r tax high, echo=FALSE, fig.height=10, fig.width=10}
+all_cars_high_tax <- all_cars_clean %>% filter(tax > 350) %>% select(where(is.numeric))
+
+plots <- lapply(names(all_cars_high_tax), plot_hist_box, data = all_cars_high_tax)
+do.call(grid.arrange, c(plots, ncol = 2))
+rm(plots)
+```
+It looks like that these cars also have quite high values for enginesize and price, with most values above the average (most likely luxury cars). 
+We will remove these `r nrow(all_cars_high_tax)` outliers.
+
+```{r tax remove high, echo=FALSE}	
+all_cars_clean <- all_cars_clean %>% filter(tax < 350)
+rm (all_cars_high_tax)
+```
+
+Now looking at the low tax value group.
+
+```{r tax low, echo=FALSE, fig.height=10, fig.width=10}
+all_cars_low_tax <- all_cars_clean %>% filter(tax < 100) %>% select(where(is.numeric))
+nrow(all_cars_low_tax)
+plots <- lapply(names(all_cars_low_tax), plot_hist_box, data = all_cars_low_tax)
+do.call(grid.arrange, c(plots, ncol = 2))
+rm(plots)
+```
+First of all we see there is quite a large number of cars in this cluster: `r nrow(all_cars_low_tax)`.
+Excluding a clear outlier, these cars have a small price and the other values are not particularly different from others besides the low value of tax. 
+Therefore we will keep these and only remove the outlier with a price of `r max(all_cars_low_tax$price)` for a relatively low tax.
+
+```{r tax remove low, echo=FALSE}	
+all_cars_clean <- all_cars_clean %>% filter(!(tax < 100 & price > 50000))
+rm (all_cars_low_tax)
+```
+
+#### Engine Size
+The Histogram shows us that there are some cars with a reported engine sizze of 0, which is not possible so we will remove them.
+
+```{r engineSize 0, echo=FALSE}
+all_cars_clean <- all_cars_clean %>% filter(engineSize > 0)
+plot <- lapply("engineSize", plot_hist_box, data = all_cars_clean)
+do.call(grid.arrange, c(plot, ncol = 1))
+rm(plot)
+```
+
+Now looking at the bigger engine sizes we see that there are a small number of cars with engine sizes above 4.
+
+```{r engineSize big, echo=FALSE, fig.height=10, fig.width=10}
+all_cars_clean_big_engine <- all_cars_clean %>% filter(engineSize > 4)%>% select(where(is.numeric))
+
+plots <- lapply(names(all_cars_clean_big_engine), plot_hist_box, data = all_cars_clean_big_engine)
+do.call(grid.arrange, c(plots, ncol = 2))
+rm(plots, all_cars_clean_big_engine)
+```
+
+As we can see all of these cars have a high tax, but  most of them are around 150 tax, the rest are outliers with a very high tax, so we eill remove just these.
+
+```{r ngineSize remove big, echo=FALSE}
+all_cars_clean <- all_cars_clean %>% filter(!(engineSize > 4 & tax > 200))
+plot <- lapply("engineSize", plot_hist_box, data = all_cars_clean)
+do.call(grid.arrange, c(plot, ncol = 1))
+rm(plot)
+```
+
+#### Price
+The distribution, like the mileage is a long tail distribution, which we could try to normalize with a log distribution to improve model performnce but will leave as is for now.
+
+#### After Outlier Removal
+We ended up removing `r nrow(all_cars) - nrow(all_cars_clean)` rows from the dataset.
+
+```{r after outlier, echo=FALSE, fig.height=10, fig.width=10}
+numeric_data <- all_cars_clean %>% select(where(is.numeric))
+
+plots <- lapply(names(numeric_data), plot_hist_box, data = numeric_data)
+
+do.call(grid.arrange, c(plots, ncol = 2))
+
+rm(numeric_data, plots)
+```
+
+
+### 2.3.2. Bivariate/Multivariate Analysis
+We can also look at the relationships between variables and see how they affect each other.
+
+```{r ggpair,echo=FALSE}
+plot <- all_cars_clean %>% select(where(is.numeric)) %>% ggpairs()
+
+ggsave("ggpairs.png", plot, width = 10, height = 10)
+knitr::include_graphics("ggpairs.png")
+rm(plot)
+```
+
+```{r corrplot,echo=FALSE}
+options(repr.plot.width=10, repr.plot.height=8)
+corrplot(all_cars_clean %>% select(where(is.numeric)) %>% 
+cor(), method="color", addCoef.col = "black")
+```
+
+From the heatmap, we can say the following about the price:
+- There is a moderate positive correlation (0.5) between the price and the year. This means that cars with a higher year tend to be more expensive.
+- There is a moderate negative correlation (-0.42) between the price and the mileage. This means that cars with higher mileage tend to be cheaper.
+- There is a small positive correlation (0.31) between the price and the tax. This means that cars with higher tax tend to be more expensive.
+- There is a moderate negative correlation (-0.47) between the price and the miles per gallon. This means that cars with higher mpg tend to be cheaper.
+- There is a significant positive correlation (0.66) between the price and the engine size. This means that cars with higher engine size tend to be more expensive.
+
+In regards to other relations between variables:
+- There is a significant negative correlation (-0.74) between the mileage and the year. This means that cars with a lower (older) year tend to have more mileage.
+- There is a significant negative correlation (-0.6) between the miles per gallon and the tax. This means that cars with high mpg tend to have lower tax.
+
+We should investigate Multivariate outliers for the features with high correlations:
+- price-year
+- price-mileage
+- price-mpg
+- price-enginesize
+- tax-mpg
+- mileage-year
+
+
+```{r scatter plots,echo=FALSE}
+plot1 <- ggplot(all_cars_clean, aes(x = year, y = price, color = fuelType)) + geom_point()
+plot2 <- ggplot(all_cars_clean, aes(x = mileage, y = price)) + geom_point()
+plot3 <- ggplot(all_cars_clean, aes(x = mpg, y = price, color = fuelType)) + geom_point()
+plot4 <- ggplot(all_cars_clean, aes(x = engineSize, y = price, color = transmission)) + geom_point()
+plot5 <- ggplot(all_cars_clean, aes(x = mpg, y = tax)) + geom_point()
+plot6 <- ggplot(all_cars_clean, aes(x = year, y = mileage)) + geom_point()
+
+grid <- gridExtra::arrangeGrob(plot1, plot2, plot3, plot4, plot5, plot6, ncol = 2)
+
+ggsave("scatter_plots.png", grid, width = 10, height = 10)
+
+knitr::include_graphics("scatter_plots.png")
+
+rm(plot1, plot2, plot3, plot4, plot5, plot6, grid)
+```
+
+There don't seem to be many outliers left, so we will only remove the two outliers that have a mpg of 60 or higher but a tax of about 250.
+
+```{r remove outlier tax-mpg,echo=FALSE}
+all_cars_clean <- all_cars_clean %>% filter(!(mpg >= 55 & tax > 200))
+```
+
+We have removed `r nrow(all_cars) - nrow(all_cars_clean)` outliers from the dataset which represent `r round((nrow(all_cars) - nrow(all_cars_clean)) / nrow(all_cars) * 100, 2)`% of the original data.
+
+We can now look at the relationships between the categorical variables and the price of the cars.
+
+```{r scatter categoricals,echo=FALSE, fig.height=5}
+
+plot1 <- all_cars_clean %>% select(make, price, transmission) %>% 
+  ggplot() + geom_boxplot(aes(x=make, y=price, color=transmission)) + 
+  ggtitle("Price per make per transmission")
+
+plot2 <- all_cars_clean %>% select(fuelType, make, price) %>% 
+  ggplot() + geom_boxplot(aes(x=make, y=price, color=fuelType)) + 
+  ggtitle("Price per make per fuelType")
+
+grid.arrange(plot1, plot2, ncol = 1)
+
+rm(plot1, plot2)
+```
+
+
+## 2.4. Feature Engineering & Data Preparation
+
+
+First we'll start by encoding the categorical variables using one-hot encoding.
+
+```{r ,echo=FALSE}
+all_cars_clean_encoded <- all_cars_clean
+list_categorical <- c("model", "transmission", "fuelType", "make")
+
+all_cars_clean_encoded[list_categorical] <- lapply(all_cars_clean_encoded[list_categorical], function(x) as.numeric(factor(x)))
+
+kable(head(all_cars_clean_encoded), align = 'l')
+rm(list_categorical)
+```
+
+As mentioned before we will perform a log transformation to normalize the values of mileage and price to improve performance in models that assume normality.
+
+```{r log transformation mileage, echo=FALSE}
+all_cars_clean_encoded_log_mileage <- all_cars_clean_encoded %>% 
+  mutate(mileage = log(mileage))
+
+plot <- lapply("mileage", plot_hist_box, data = all_cars_clean_encoded_log_mileage)
+
+do.call(grid.arrange, c(plot, ncol = 1))
+rm(plot, all_cars_clean_encoded_log_mileage)
+```
+
+Clearly the log transformation has not improved the distribution of the mileage variable. We will keep it as it was.
+
+```{r log transformation price, echo=FALSE}
+qqplot_price_before <- ggplot(all_cars_clean_encoded, aes(sample = price)) + 
+  stat_qq() + 
+  stat_qq_line() +
+  ggtitle("Q-Q Plot of Price (Before Transformation)")
+
+all_cars_clean_encoded <- all_cars_clean_encoded %>% 
+  mutate(price = log(price))
+
+plot <- lapply("price", plot_hist_box, data = all_cars_clean_encoded)
+
+do.call(grid.arrange, c(plot, ncol = 1))
+rm(plot)
+```
+
+```{r log transformation price qqplot, echo=FALSE}
+qqplot_price_after <- ggplot(all_cars_clean_encoded, aes(sample = log(price))) + 
+  stat_qq() + 
+  stat_qq_line() +
+  ggtitle("Q-Q Plot of Price (After Transformation)")
+
+
+grid <- gridExtra::arrangeGrob(qqplot_price_before, qqplot_price_after, ncol = 2)
+
+ggsave("qq_plots.png", grid, width = 10, height = 10)
+
+knitr::include_graphics("qq_plots.png")
+
+rm(qqplot_price_before, qqplot_price_after, grid)
+```
+
+For the price variable, the log transformation has improved the distribution and made it more normal. We will keep this transformation.
+
+We are now ready to start building the price prediction models.
+
+## 2.5. Modeling Approaches
+
+We will be building several models to predict the price of the cars.
+We will evaluate the performance of each model using appropriate metrics and select the best model based on these metrics.
+
+# 3. Model Building
+We will use models from the caret package with cross validation to evaluate the performance of the models and select the best one based on the RMSE and R2 values.
+
+```{r setup evaluate, echo=FALSE}
+
+results <- data.frame(
+  Model = character(),
+  RMSE = numeric(),
+  R2 = numeric()
+)
+
+evaluate_model <- function(predictions, model_name, results) {
+  predictions_original_scale <- exp(predictions)
+  actual_values_original_scale <- exp(testData$price)
+
+  metrics <- postResample(pred = predictions_original_scale, obs = actual_values_original_scale)
+
+  results <- rbind(results, data.frame(
+    Model = model_name,
+    RMSE = metrics['RMSE'],
+    R2 = metrics['Rsquared'],
+    MAE = metrics['MAE']
+  ))
+  kable(results)
+}
+
+```
+
+## 3.1. Data Splitting: Split the data into training and testing sets.
+We will split the data into training and testing sets using an 80/20 split.
+```{r split data,echo=FALSE}
+set.seed(123)
+trainIndex <- createDataPartition(all_cars_clean_encoded$price, p = 0.8, list = FALSE)
+
+trainData <- all_cars_clean_encoded[trainIndex, ]
+trainData_X <- trainData %>% select(-price)
+trainData_Y <- trainData$price
+
+testData <- all_cars_clean_encoded[-trainIndex, ]
+testData_X <- testData %>% select(-price)
+testData_Y <- testData$price
+```
+
+## 3.2. Model 1: Baseline linear regression model
+```{r baseline lr model, echo=FALSE}
+train_control <- trainControl(method = "cv", number = 10)
+
+lr_model <- train(
+  price ~ .,
+  data = trainData,
+  method = "lm",
+  trControl = train_control
+)
+
+print(lr_model$bestTune)
+
+predictions <- predict(lr_model, newdata = testData)
+
+evaluate_model(predictions, "Baseline Linear Regression", results)
+
+rm(lr_model, train_control, predictions)
+```
+
+## 3.3. Model 2: Elastic Net Model
+```{r, echo=FALSE}
+train_control <- trainControl(method = "cv", number = 10)
+
+tuneGrid <- expand.grid(
+  alpha = seq(0, 1, by = 0.1), # mix of L1 and L2 regularization
+  lambda = 10^seq(-3, 3, length.out = 10) # regularization strength
+)
+
+elasticnet_model <- train(
+  price ~ ., 
+  data = trainData, 
+  method = "glmnet", 
+  trControl = train_control, 
+  tuneGrid = tuneGrid
+)
+
+print(elasticnet_model$bestTune)
+
+predictions <- predict(elasticnet_model, newdata = testData)
+
+evaluate_model(predictions, "Elastic Net", results)
+
+rm(elasticnet_model, train_control, tuneGrid, predictions)
+```
+
+## 3.4. Model 3: LightGBM Model
+
+```{r LightGmb Model, echo=FALSE}
+dtrain <- lgb.Dataset(data = as.matrix(trainData_X), label = trainData_Y)
+
+# Set up the parameters for LightGBM
+params <- list(
+  objective = "regression",
+  metric = "rmse",
+  learning_rate = 0.01,
+  num_leaves = 31,
+  max_depth = -1,
+  min_data_in_leaf = 20,
+  bagging_fraction = 1,
+  feature_fraction = 1
+)
+
+# Perform cross-validation to find the optimal number of iterations
+cv_result <- lgb.cv(
+  params = params,
+  data = dtrain,
+  nrounds = 1000,
+  nfold = 5,
+  early_stopping_rounds = 10,
+  seed = 123
+)
+
+# Train the LightGBM model
+lightgbm_model <- lgb.train(
+  params = params,
+  data = dtrain,
+  nrounds = cv_result$best_iter
+)
+
+print(params)
+
+predictions <- predict(lightgbm_model, newdata = as.matrix(testData_X))
+
+results <- evaluate_model(predictions, "LightGBM", results)
+
+rm(dtrain, cv_result, lightgbm_model)
+```
+
+
+# 4. Model Evaluation & Results
+
+## 4.1. Results
+```{r , echo=FALSE}
+
+```
+
+## 4.2. Insights Gained
+
+
+# 5. Conclusion
+
+## 5.1. Summary of the Report
+
+
+## 5.2. Potential Impact
+
+
+## 5.3. Limitations
+
+
+## 5.4. Future Work
+
+
+# 6. References
+
+[1] “Introduction to Data Science - Data Analysis and Prediction Algorithms with R”, Dr. Rafael A. Irizarry [link](https://rafalab.github.io/dsbook/)
+
+# Appendices
