@@ -398,7 +398,7 @@ cor(), method="color", addCoef.col = "black")
 ```
 
 From the heatmap, we can say the following about the price:
-- There is a moderate positive correlation (0.5) between the price and the year. This means that cars with a higher year tend to be more expensive.
+* There is a moderate positive correlation (0.5) between the price and the year. This means that cars with a higher year tend to be more expensive.
 - There is a moderate negative correlation (-0.42) between the price and the mileage. This means that cars with higher mileage tend to be cheaper.
 - There is a small positive correlation (0.31) between the price and the tax. This means that cars with higher tax tend to be more expensive.
 - There is a moderate negative correlation (-0.47) between the price and the miles per gallon. This means that cars with higher mpg tend to be cheaper.
@@ -528,9 +528,11 @@ We are now ready to start building the price prediction models.
 
 We will be building several models to predict the price of the cars and evaluate the performance of each model using appropriate metrics such as RMSE, R2 and MAE and select the best model based on these metrics.
 
-- RMSE: Root Mean Squared Error is the square root of the average of the squared differences between the predicted and actual values.
+- RMSE: Root Mean Squared Error is the square root of the average of the squared differences between the predicted and actual values. The smaller the RMSE, the better the model's performance.
 - R2: R-squared is a measure of how well the model fits the data. It is a value between 0 and 1, with 1 indicating a perfect fit.
-- MAE: Mean Absolute Error is the average of the absolute differences between the predicted and actual values.
+- MAE: Mean Absolute Error is the average of the absolute differences between the predicted and actual values. Like RMSE, the smaller the MAE, the better the model's performance.
+
+Due to the nature of our dataset and the some of the linear relations between variables we observed we'll start by trying linear models and more complex models later.
 
 # 3. Model Building
 We will start by splitting the data into training and testing sets and then build and evaluate the models, starting with a baseline linear regression model and then moving on to more complex models such as Elastic Net and LightGBM.
@@ -596,8 +598,6 @@ lr_model <- train(
   trControl = train_control
 )
 
-print(lr_model$bestTune)
-
 predictions_lr <- predict(lr_model, newdata = testData)
 
 evaluate_model(predictions_lr, "Baseline Linear Regression", results)
@@ -650,7 +650,7 @@ LightGBM extends the gradient boosting model by introducing two key innovations:
 LightGBM constructs trees leaf-wise (best-first), rather than level-wise like other boosting methods. 
 This makes the model more efficient and generally leads to better model fit as it grows the tree more with the most promising regions.
 
-```{r LightGmb Model, echo=FALSE}
+```{r LightGmb Model, echo=FALSE, message=FALSE}
 dtrain <- lgb.Dataset(data = as.matrix(trainData_X), label = trainData_Y)
 
 # Set up the parameters for LightGBM
@@ -685,7 +685,8 @@ predictions_lightgbm <- predict(lightgbm_model, newdata = as.matrix(testData_X))
 
 evaluate_model(predictions_lightgbm, "LightGBM", results)
 
-rm(dtrain, cv_result, lightgbm_model)
+rm(dtrain, cv_result, params)
+rm(evaluate_model)
 ```
 
 As we can see this is quite a good result. We will now compare the results of the three models.
@@ -693,24 +694,96 @@ As we can see this is quite a good result. We will now compare the results of th
 # 4. Model Evaluation & Results
 
 ## 4.1. Results
-```{r , echo=FALSE}
 
+#### Actual vs Predicted Values Plot
+
+This plot compares the predicted values against the actual values, showing how closely the predictions align with reality; closer points to the diagonal line indicate more accurate predictions.
+Divergence from the diagonal line highlights prediction errors, with each model’s performance visibly differentiated by color.
+
+```{r Residuals Plot, echo=FALSE}
+combined_predictions <- data.frame(
+  Actual = exp(c(testData$price, testData$price, testData$price)),
+  Predicted = exp(c(predictions_lr, predictions_elasticnet, predictions_lightgbm)),
+  Model = rep(c("Baseline Linear Regression", "Elastic Net", "LightGBM"), each = nrow(testData))
+)
+
+ggplot(combined_predictions, aes(x = Actual, y = Predicted, color = Model)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "black", linetype = "dashed") +
+  labs(x = "Actual Values", y = "Predicted Values", title = "Actual vs Predicted Values by Model") +
+  theme_minimal()
+
+ggsave("combined_predictions_plot.png", plot = p, width = 10, height = 10)
+knitr::include_graphics("combined_predictions_plot.png")
+
+```
+
+As we see, the LightGBM model has the best performance, with predictions closely aligned with the actual values.
+However we see also that the bigger the price the bigger the error.
+
+#### Residuals vs Actual Values Plot
+
+Residuals (differences between actual and predicted values) are plotted against actual values to identify patterns; residuals clustering around zero suggest better model accuracy.
+Systematic patterns or trends in the residuals may indicate model biases or heteroscedasticity, requiring further model adjustments.
+
+```{r Prediction Error Plot, echo=FALSE}
+ggplot(combined_predictions, aes(x = Actual, y = Predicted - Actual, color = Model)) +
+  geom_point() +
+  geom_hline(yintercept = 0, color = "black", linetype = "dashed") +
+  labs(x = "Actual Values", y = "Residuals", title = "Residuals vs Actual Values by Model")
+
+```
+
+#### Variable Importance Plot
+
+This plot ranks the features based on their importance in the LightGBM model, highlighting which features most influence the model’s predictions.
+Features higher on the plot have a greater impact on the model, guiding feature selection and model refinement.
+
+```{r Variable Importance Plot, echo=FALSE}
+importance <- lgb.importance(lightgbm_model)
+lgb.plot.importance(importance, top_n = 10)
+```
+
+#### Learning Curve
+
+The learning curve displays the model’s performance improvement over training iterations, helping to evaluate learning efficiency and convergence behavior.
+If the curve plateaus, additional training data or iterations may not significantly improve model performance, indicating potential model limits.
+
+```{r , echo=FALSE}
+lgb.plot.learning(lightgbm_model)
 ```
 
 # 5. Conclusion
 
 ## 5.1. Summary of the Report
 
-
+In this report, we analyzed a dataset of used car sales.
+We explored the relationships between various features and the car price, and built predictive models to estimate the price of a car based on its features.
+Our models included a baseline linear regression model, an Elastic Net model, and a LightGBM model.
+The LightGBM model performed the best, with the lowest RMSE and highest R-squared value.
 
 ## 5.2. Potential Impact
 
+The results of this analysis could be useful for both buyers and sellers of used cars.
+Buyers could use our model to estimate the fair price for a used car based on its features, which could help them negotiate a better deal.
+Sellers could use our model to set a competitive price for their car that reflects its value.
+Additionally, our analysis could be useful for car dealerships and online marketplaces that deal in used cars.
 
 ## 5.3. Limitations
 
+Our analysis has several limitations.
+First, our dataset only includes used cars, so our findings may not apply to new cars.
+Second, our dataset may not be representative of all used cars, as it only includes cars that were listed for sale on a specific website.
+Third, our models assume that the relationships between the features and the car price are linear, which may not be the case in reality.
+Finally, our models do not account for factors that could affect the car price but were not included in our dataset, such as the car's condition or the seller's negotiation skills.
 
 ## 5.4. Future Work
 
+In future work, I could improve this analysis in several ways. 
+We could collect more data to make our dataset more representative of all used cars.
+We could try different models that do not assume a linear relationship between the features and the car price, such as decision tree or neural network models.
+We could also try to include more features in our models, such as the car's condition or the seller's negotiation skills.
+Finally, we could validate our models on a separate test set to ensure that they generalize well to new data.
 
 # 6. References
 
