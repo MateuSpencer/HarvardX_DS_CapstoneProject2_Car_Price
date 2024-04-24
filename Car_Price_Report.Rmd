@@ -103,7 +103,7 @@ for (i in seq_along(data_frames)) {
 rm(data_frames, first_column_names, current_column_names, i)
 ```
 
-As we see one of them has a different column name, we will change it to match the others so we don't get two columns that shpuld actually be the same when we join the datasets.
+As we see one of them has a different column name, we will change it to match the others so we don't get two columns that should actually be the same when we join the datasets.
 
 ```{r rename, echo=FALSE}
 hyundi <- rename(hyundi, tax = `tax(£)`)
@@ -133,7 +133,7 @@ all_cars <- bind_rows(list(audi, bmw, ford, hyundi, merc, skoda, toyota, vauxhal
 rm(audi, bmw, ford, hyundi, merc, skoda, toyota, vauxhall, vw)
 ```
 
-Before cleaning the data we will create a final holdout test so that we can use it to test our final selected model on a completly seoparate and independent data set.
+Before cleaning the data we will create a final holdout test so that we can use it to test our final selected model on a completly sepparate and independent dataset.
 
 ```{r holdout, echo=FALSE}
 set.seed(123)
