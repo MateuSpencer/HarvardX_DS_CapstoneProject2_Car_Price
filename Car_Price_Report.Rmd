@@ -60,6 +60,8 @@ knitr::opts_chunk$set(fig.align='center', echo=FALSE, warning=FALSE, message=FAL
 This project aims to explore, clean, and analyze a dataset of used car sales in the UK.
 The dataset, sourced from Kaggle:  [100,000 UK Used Car Data set](https://www.kaggle.com/datasets/adityadesai13/used-car-dataset-ford-and-mercedes/data), contains information about 100,000 used cars from various makes including Audi, BMW, Ford, Hyundai, Mercedes, Skoda, Toyota, Vauxhall, and Volkswagen.
 
+The code for the project can be found on [GitHub](https://github.com/MateuSpencer/HarvardX_DS_CapstoneProject2_Car_Price)
+
 The primary goal of this project is to build and evaluate predictive models that can effectively predict car sales.
 This involves several steps, starting with initial data exploration to understand the structure and characteristics of the data, followed by data cleaning to handle missing values, outliers, and any inconsistencies in the data. 
 Feature engineering is then performed to create new variables that can improve the performance of the predictive models.
